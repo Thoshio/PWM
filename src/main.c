@@ -44,6 +44,7 @@ void liga(char cor) {
 }
 
 void semaforo(int *estado) {
+// máquina de estados do semáforo
 
     if (*estado == 0) {
     //desliga todos os leds
