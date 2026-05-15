@@ -6,7 +6,8 @@
 // Define o valor do registrador MOD do TPM para configurar o período do PWM
 #define TPM_MODULE 1000         // Define a frequência do PWM fpwm = (TPM_CLK / (TPM_MODULE * PS))
 // Valores de duty cycle correspondentes a diferentes larguras de pulso
-uint16_t duty_50  = TPM_MODULE/2;       // 50% de duty cycle (meio brilho)
+uint16_t duty_red  = TPM_MODULE;       // 50% de duty cycle (meio brilho)
+uint16_t duty_green  = TPM_MODULE/2;       // 50% de duty cycle (meio brilho)
 
 int main(void)
 {
@@ -22,9 +23,11 @@ int main(void)
     // Inicializa o canal 0 do TPM2 para gerar sinal PWM na porta GPIOB_18
     // - modo TPM_PWM_H (nível alto durante o pulso)
     pwm_tpm_Ch_Init(TPM2, 0, TPM_PWM_H, GPIOB, 18);
+    pwm_tpm_Ch_Init(TPM2, 1, TPM_PWM_H, GPIOB, 19);
 
     // Define o valor do duty cycle: nesse caso, duty_100 (LED quase desligado)
-    pwm_tpm_CnV(TPM2, 0, duty_50);
+    pwm_tpm_CnV(TPM2, 0, 0);
+    pwm_tpm_CnV(TPM2, 1, duty_green);
 
     // Loop infinito
     for (;;)
