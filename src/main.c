@@ -2,10 +2,12 @@
 #include <zephyr/device.h>             // API para obter e utilizar dispositivos do sistema
 #include <zephyr/drivers/gpio.h>       // API para controle de pinos de entrada/saída (GPIO)
 #include <pwm_z402.h>                  // Biblioteca personalizada com funções de controle do TPM (Timer/PWM Module)
+#include <zephyr/console/console.h>
 #include <stdio.h>
 
 // Define o valor do registrador MOD do TPM para configurar o período do PWM
 #define TPM_MODULE 1000         // Define a frequência do PWM fpwm = (TPM_CLK / (TPM_MODULE * PS))
+
 // Define o LED usando Device Tree
 #define green_NODE DT_ALIAS(led0) //verde
 #define red_NODE DT_ALIAS(led2) //vermelho
@@ -33,57 +35,54 @@ int main(void)
     pwm_tpm_Ch_Init(TPM2, 0, TPM_PWM_H, GPIOB, led_r.pin);
     pwm_tpm_Ch_Init(TPM2, 1, TPM_PWM_H, GPIOB, led_g.pin);
 
+    // Desligando os leds
+    pwm_tpm_CnV(TPM2, 0, TPM_MODULE);
+    pwm_tpm_CnV(TPM2, 1, TPM_MODULE);
+
     // Define variaveis para sabermos o value do Duty Cycle
-    double value_g, duty_g, value_r, duty_r;
+    float value_g, duty_g, value_r, duty_r;
 
     // Para cor laranja: Duty_green = 50% e Duty_red = 90%
     duty_g = 0.5;
-    duty_r = 0.90;
+    duty_r = 0.9;
 
     // Criando a variável de entrada do user que controla 
     // a intensidade do brilho do LED
-    double intensity_user;
-    double intensity_led;
+    int intensity_user;
+    float intensity_led;
 
+    // Para o console
+    console_getline_init();
+    
     // Loop infinito
     for (;;)
     {
-    // O programa poderia alterar o duty cycle dinamicamente aqui se desejado
+        // Lê o valor digitado pelo usuario
+        printk("\n\nInsira um valor que determine a intensidade do brilho do LED de 0(min) a 100(max):\n");
+        char *line = console_getline();
 
-        intensity_user = 0;
-        // Transforma a intensidade do usuário em porcentagem
-        intensity_led = intensity_user/100;
+        if (sscanf(line, "%d", &intensity_user) == 1) {
 
-        // Equacao do value de pwm_tpm_CnV(tpm, channel, value) para Active Low
-        value_g = TPM_MODULE * (1.0 - (duty_g * intensity_led));
-        value_r = TPM_MODULE * (1.0 - (duty_r * intensity_led));
+            // Trava o valor entre 0 e 100 para segurança
+            if (intensity_user > 100) intensity_user = 100;
+            if (intensity_user < 0) intensity_user = 0;
+            printk("Processando brilho: %d \n", intensity_user);
 
-        // Define o valor do duty cycle: nesse caso, duty_100 (LED quase desligado)
-        pwm_tpm_CnV(TPM2, 0, value_r);
-        pwm_tpm_CnV(TPM2, 1, value_g);
-        
+            // Transforma a intensidade do usuário em porcentagem
+            intensity_led = intensity_user/100.0;
 
-        // Aumento gradual da intensidade
+            // Equacao do value de pwm_tpm_CnV(tpm, channel, value) para Active Low
+            value_g = TPM_MODULE * (1 - (duty_g * intensity_led));
+            value_r = TPM_MODULE * (1 - (duty_r * intensity_led));
 
-        for (intensity_user = 5; intensity_user <= 100; intensity_user+=5) {
-            k_msleep(300);
-            intensity_led = intensity_user/100;
-            value_g = TPM_MODULE * (1.0 - (duty_g * intensity_led));
-            value_r = TPM_MODULE * (1.0 - (duty_r * intensity_led));
-            pwm_tpm_CnV(TPM2, 0, value_r);
-            pwm_tpm_CnV(TPM2, 1, value_g);
+            // Define o valor do duty cycle: nesse caso, duty_100% (LED quase desligado)
+            pwm_tpm_CnV(TPM2, 0, (uint16_t)value_r);
+            pwm_tpm_CnV(TPM2, 1, (uint16_t)value_g);
+
+        } else {
+            // Caso seja enviada uma letra por exemplo
+            printk("Entrada invalida. Digite um numero inteiro.\n");
         }
-
-        for (intensity_user = 95; intensity_user >= 0; intensity_user-=5) {
-            k_msleep(300);
-            intensity_led = intensity_user/100;
-            value_g = TPM_MODULE * (1.0 - (duty_g * intensity_led));
-            value_r = TPM_MODULE * (1.0 - (duty_r * intensity_led));
-            pwm_tpm_CnV(TPM2, 0, value_r);
-            pwm_tpm_CnV(TPM2, 1, value_g);
-        }
-
-
     }
 
     return 0;
